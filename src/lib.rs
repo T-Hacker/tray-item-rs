@@ -6,7 +6,7 @@ pub struct TrayItem(api::TrayItemImpl);
 
 impl TrayItem {
 
-    pub fn new(title: &str, icon: &str) -> Result<Self, TIError> {
+    pub fn new(title: &str, icon: Option<&str>) -> Result<Self, TIError> {
 
         Ok(
             Self(
@@ -16,7 +16,7 @@ impl TrayItem {
 
     }
 
-    pub fn set_icon(&mut self, icon: &str) -> Result<(), TIError> {
+    pub fn set_icon(&mut self, icon: Option<&str>) -> Result<(), TIError> {
 
         self.0.set_icon(icon)
 

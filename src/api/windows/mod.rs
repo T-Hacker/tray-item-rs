@@ -47,7 +47,7 @@ pub struct TrayItemWindows {
 
 impl TrayItemWindows {
 
-    pub fn new(title: &str, icon: &str) -> Result<Self, TIError> {
+    pub fn new(title: &str, icon: Option<&str>) -> Result<Self, TIError> {
 
         let entries = Arc::new(Mutex::new(Vec::new()));
         let (tx, rx) = channel();
@@ -138,7 +138,7 @@ impl TrayItemWindows {
 
     }
 
-    pub fn set_icon(&self, icon: &str) -> Result<(), TIError> {
+    pub fn set_icon(&self, icon: Option<&str>) -> Result<(), TIError> {
 
         self.set_icon_from_resource(icon)
 
@@ -216,12 +216,18 @@ impl TrayItemWindows {
         Ok(())
     }
 
-    fn set_icon_from_resource(&self, resource_name: &str) -> Result<(), TIError> {
+    fn set_icon_from_resource(&self, resource_name: Option<&str>) -> Result<(), TIError> {
+        let resource_name = if let Some(resource_name) = resource_name {
+            to_wstring(&resource_name).as_ptr()
+        } else {
+            1 as *const u16
+        };
+
         let icon;
         unsafe {
             icon = winuser::LoadImageW(
                 self.info.hinstance,
-                to_wstring(&resource_name).as_ptr(),
+                resource_name,
                 IMAGE_ICON,
                 64,
                 64,
