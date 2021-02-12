@@ -1,10 +1,6 @@
 use super::*;
 use crate::TIError;
-use std::{
-    self,
-    ffi::OsStr,
-    os::windows::ffi::OsStrExt
-};
+use std::{self, ffi::OsStr, os::windows::ffi::OsStrExt};
 use winapi::{
     ctypes::{c_ulong, c_ushort},
     shared::{
@@ -18,9 +14,8 @@ use winapi::{
         errhandlingapi, libloaderapi,
         shellapi::{self, NIF_MESSAGE, NIM_ADD, NOTIFYICONDATAW},
         winuser::{
-            self, CW_USEDEFAULT, MENUINFO, MENUITEMINFOW,
-            MIM_APPLYTOSUBMENUS, MIM_STYLE, MNS_NOTIFYBYPOS, WM_USER, WNDCLASSW,
-            WS_OVERLAPPEDWINDOW,
+            self, CW_USEDEFAULT, MENUINFO, MENUITEMINFOW, MIM_APPLYTOSUBMENUS, MIM_STYLE,
+            MNS_NOTIFYBYPOS, WM_USER, WNDCLASSW, WS_OVERLAPPEDWINDOW,
         },
     },
 };
@@ -33,7 +28,11 @@ pub(crate) fn to_wstring(str: &str) -> Vec<u16> {
 }
 
 pub(crate) unsafe fn get_win_os_error(msg: &str) -> TIError {
-    TIError::new_with_location(format!("{}: {}", &msg, errhandlingapi::GetLastError()), std::file!(), std::line!())
+    TIError::new_with_location(
+        format!("{}: {}", &msg, errhandlingapi::GetLastError()),
+        std::file!(),
+        std::line!(),
+    )
 }
 
 pub(crate) unsafe extern "system" fn window_proc(
@@ -49,17 +48,25 @@ pub(crate) unsafe extern "system" fn window_proc(
             if let Some(stash) = stash {
                 let menu_id = winuser::GetMenuItemID(stash.info.hmenu, w_param as i32) as i32;
                 if menu_id != -1 {
-                    stash
-                        .tx
-                        .send(WindowsTrayEvent(menu_id as u32))
-                        .ok();
+                    stash.tx.send(WindowsTrayEvent(menu_id as u32)).ok();
                 }
             }
         });
     }
 
     if msg == WM_USER + 1 {
-        if l_param as UINT == winuser::WM_LBUTTONUP || l_param as UINT == winuser::WM_RBUTTONUP {
+        if l_param as UINT == winuser::WM_LBUTTONUP {
+            WININFO_STASH.with(|stash| {
+                let stash = stash.borrow();
+                let stash = stash.as_ref();
+                if let Some(stash) = stash {
+                    stash
+                        .left_click_tx
+                        .send(LeftClickCallbackEvent::Click)
+                        .unwrap_or_default();
+                }
+            });
+        } else if l_param as UINT == winuser::WM_RBUTTONUP {
             let mut p = POINT { x: 0, y: 0 };
             if winuser::GetCursorPos(&mut p as *mut POINT) == 0 {
                 return 1;
@@ -85,6 +92,7 @@ pub(crate) unsafe extern "system" fn window_proc(
     if msg == winuser::WM_DESTROY {
         winuser::PostQuitMessage(0);
     }
+
     return winuser::DefWindowProcW(h_wnd, msg, w_param, l_param);
 }
 
